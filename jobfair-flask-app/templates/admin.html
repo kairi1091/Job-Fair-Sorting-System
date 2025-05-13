@@ -11,15 +11,35 @@
   </style>
 </head>
 <body>
-    <h2>全スケジュール一覧（管理者用）</h2>
-
     <form method="post" action="/admin/run" style="margin-bottom: 1em;">
-      <button type="submit">▶️ スケジュール割当を実行</button>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul>
+                {% for message in messages %}
+                    <li style="color: green;">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <p><a href="/admin/upload">📤 CSVアップロード</a></p>
+      
+        <h2>👥 共通キャパ（全企業）</h2>
+        <select name="shared_capacity">
+          {% for val in range(1, 21) %}
+            <option value="{{ val }}" {% if shared_capacity == val %}selected{% endif %}>{{ val }}</option>
+          {% endfor %}
+        </select>
+        
+        <br><br>
+        <button type="submit">▶️ 保存して割当を実行</button>
     </form>
-    
+      
+    <p><a href="/admin/download" download>📥 スケジュールCSVをダウンロード</a></p>
+    <p><a href="/admin/logs">📋 ログを確認する</a></p>
+    <p><a href="/admin/stats">📊 統計・ログを見る</a></p>
+
     {{ table | safe }}
-    
-    <p><a href="/admin/upload">📤 CSVアップロード</a></p>
-    
+       
 </body>
 </html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <title>統計とログ</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+    h2 { margin-top: 2em; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 2em; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    th { background-color: #eee; }
+  </style>
+</head>
+<body>
+
+<p><a href="/admin">← 管理画面に戻る</a></p>
+<h1>📊 希望反映状況（希望あり学生のみ）</h1>
+<table>
+  <tr><th>学籍番号</th><th>割当</th><th>希望に合致</th><th>反映率</th></tr>
+  {% for s in stats_data %}
+  <tr>
+    <td>{{ s.student_id }}</td>
+    <td>{{ s.assigned }}</td>
+    <td>{{ s.matched }}</td>
+    <td>{{ s.reflect_rate }}%</td>
+  </tr>
+  {% endfor %}
+</table>
+
+
+</body>
+</html>

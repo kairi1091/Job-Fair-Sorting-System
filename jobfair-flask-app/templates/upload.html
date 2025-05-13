@@ -4,10 +4,13 @@
   <title>CSVアップロード</title>
   <style>
     body { font-family: sans-serif; padding: 2em; }
+    h2 { margin-bottom: 1em; }
   </style>
 </head>
 <body>
-  <h2>CSVファイルをアップロード</h2>
+
+  <h2>📤 学生・企業データCSVアップロード</h2>
+
   {% with messages = get_flashed_messages() %}
     {% if messages %}
       <ul>
@@ -17,10 +20,18 @@
       </ul>
     {% endif %}
   {% endwith %}
+
   <form method="post" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".csv" required>
-    <button type="submit">アップロード</button>
+    <label>学生データ（students.csv）</label><br>
+    <input type="file" name="students"><br><br>
+
+    <label>企業データ（companies.csv）</label><br>
+    <input type="file" name="companies"><br><br>
+
+    <button type="submit">アップロードして保存</button>
   </form>
-  <p><a href="/admin">← 管理者画面に戻る</a></p>
+
+  <p><a href="/admin">← 管理画面に戻る</a></p>
+
 </body>
 </html>

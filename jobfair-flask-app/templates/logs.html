@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <title>ログ一覧</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+    h2 { margin-top: 2em; }
+    ul { line-height: 1.5em; }
+  </style>
+</head>
+<body>
+
+<h1>📈 STEP 4 / 5 補完ログ</h1>
+<ul>
+  {% for log in step_logs %}
+    <li>{{ log }}</li>
+  {% endfor %}
+</ul>
+
+<h2>🧯 割当違反チェックログ</h2>
+<ul>
+  {% for v in violation_logs %}
+    <li>{{ v }}</li>
+  {% endfor %}
+</ul>
+
+<p><a href="/admin">← 管理画面に戻る</a></p>
+</body>
+</html>
