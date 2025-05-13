@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <title>CSVアップロード</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+  </style>
+</head>
+<body>
+  <h2>CSVファイルをアップロード</h2>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+  <form method="post" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".csv" required>
+    <button type="submit">アップロード</button>
+  </form>
+  <p><a href="/admin">← 管理者画面に戻る</a></p>
+</body>
+</html>
