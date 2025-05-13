@@ -1,0 +1,16 @@
+# Pythonのキャッシュ
+__pycache__/
+*.pyc
+
+# 仮想環境フォルダ
+venv/
+
+# OSごとの不要ファイル
+Thumbs.db
+
+# Jupyter（使う場合）
+.ipynb_checkpoints/
+
+# 環境設定（必要に応じて）
+.env
+*.env

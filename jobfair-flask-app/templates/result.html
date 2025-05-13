@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <title>スケジュール結果</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; background-color: #eef; }
+    .box { background: #fff; padding: 1em; border-radius: 8px; max-width: 400px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>あなたのスケジュール</h2>
+    {% if row.empty %}
+      <p>該当する学籍番号が見つかりませんでした。</p>
+    {% else %}
+      <ul>
+        {% for col in row.columns[1:] %}
+          <li><strong>{{ col }}</strong>: {{ row.iloc[0][col] }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <p><a href="/">戻る</a></p>
+  </div>
+</body>
+</html>
