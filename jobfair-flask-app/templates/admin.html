@@ -1,45 +1,143 @@
 <!doctype html>
-<html>
+<html lang="ja">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>管理者画面</title>
   <style>
-    body { font-family: sans-serif; padding: 2em; background-color: #fefefe; }
-    h2 { margin-bottom: 1em; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background-color: #f0f0f0; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      background-color: #fefefe;
+      margin: 0;
+    }
+    h2 {
+      margin-bottom: 1em;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    form {
+      max-width: 600px;
+      margin-bottom: 2em;
+    }
+    select, button {
+      font-size: 1em;
+      padding: 0.5em;
+      width: 100%;
+      max-width: 300px;
+      margin-top: 0.5em;
+    }
+    ul {
+      padding-left: 1em;
+      color: green;
+    }
+    .nav-button {
+      display: inline-block;
+      margin: 0.5em 0;
+      padding: 0.75em 1.5em;
+      background-color: #04ab10;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+    }
+    .nav-button:hover {
+      background-color: #2fc44f;
+    }
+    .action-button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+      padding: 0.75em 1.5em;
+      margin-top: 1em;
+      cursor: pointer;
+      width: 100%;
+      max-width: 300px;
+    }
+    .action-button:hover {
+      background-color: #0056b3;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 1em;
+      }
+      table, thead, tbody, th, td, tr {
+        display: block;
+        width: 100%;
+      }
+      th {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+      }
+      td {
+        position: relative;
+        padding-left: 50%;
+        border: none;
+        border-bottom: 1px solid #ccc;
+      }
+      td::before {
+        position: absolute;
+        top: 0;
+        left: 10px;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        font-weight: bold;
+      }
+    }
   </style>
 </head>
 <body>
-    <form method="post" action="/admin/run" style="margin-bottom: 1em;">
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <ul>
-                {% for message in messages %}
-                    <li style="color: green;">{{ message }}</li>
-                {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
-
-        <p><a href="/admin/upload">📤 CSVアップロード</a></p>
-      
-        <h2>👥 共通キャパ（全企業）</h2>
-        <select name="shared_capacity">
-          {% for val in range(1, 21) %}
-            <option value="{{ val }}" {% if shared_capacity == val %}selected{% endif %}>{{ val }}</option>
+  <form method="post" action="/admin/run">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+          {% for message in messages %}
+            <li>{{ message }}</li>
           {% endfor %}
-        </select>
-        
-        <br><br>
-        <button type="submit">▶️ 保存して割当を実行</button>
-    </form>
-      
-    <p><a href="/admin/download" download>📥 スケジュールCSVをダウンロード</a></p>
-    <p><a href="/admin/logs">📋 ログを確認する</a></p>
-    <p><a href="/admin/stats">📊 統計・ログを見る</a></p>
+        </ul>
+      {% endif %}
+    {% endwith %}
 
+    <a href="/admin/upload" class="nav-button">📤 CSVアップロード</a>
+
+    <h2>👥 共通キャパ（全企業）</h2>
+    <select name="shared_capacity">
+      {% for val in range(1, 21) %}
+        <option value="{{ val }}" {% if shared_capacity == val %}selected{% endif %}>{{ val }}</option>
+      {% endfor %}
+    </select>
+
+    <br><br>
+    <button type="submit" class="action-button">▶️ 保存して割当を実行</button>
+  </form>
+
+  <a href="/admin/download" class="nav-button">📥 スケジュールCSVをダウンロード</a>
+  <a href="/admin/logs" class="nav-button">📋 ログを確認する</a>
+  <a href="/admin/stats" class="nav-button">📊 全員の割り当て・希望企業を見る</a>
+
+  <div style="overflow-x: auto;">
     {{ table | safe }}
-       
+  </div>
+
 </body>
 </html>

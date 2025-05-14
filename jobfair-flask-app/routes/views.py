@@ -164,18 +164,28 @@ def upload_file():
         # クレンジング後の件数確認
         try:
             df_students, mode = load_students("data/students.csv")
+
             df_companies = pd.read_csv(companies_path)
             df_companies = df_companies[df_companies["企業名"].notna()]
             df_companies = df_companies[df_companies["企業名"].str.strip() != ""]
             df_companies["企業名"] = df_companies["企業名"].str.strip()
             df_companies.to_csv(companies_path, index=False)
 
+            # ✅ 学生数カウント（学籍番号または student_id）
+            possible_keys = ["学籍番号", "student_id"]
+            for key in possible_keys:
+                if key in df_students.columns:
+                    n_students = df_students[key].nunique()
+                    break
+            else:
+                n_students = "不明（列名が見つかりません）"
+
             mode_msg = "3枠希望（＋自由訪問）" if mode == 1 else "4枠すべて希望"
-            n_students = df_students["student_id"].nunique()
-            flash(f"✅ 学生データ：{len(df_students)}人 ／ 企業データ：{len(df_companies)}社 をアップロードしました（モード：{mode_msg}）")
+            flash(f"✅ 学生データ：{n_students}人 ／ 企業データ：{len(df_companies)}社 をアップロードしました（モード：{mode_msg}）")
 
         except Exception as e:
             flash(f"⚠️ ファイル保存後の読み込みでエラーが発生しました：{str(e)}")
+
 
         return redirect(url_for("views.upload_file"))
 

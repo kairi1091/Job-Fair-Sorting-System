@@ -1,25 +1,100 @@
 <!doctype html>
-<html>
+<html lang="ja">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>スケジュール結果</title>
   <style>
-    body { font-family: sans-serif; padding: 2em; background-color: #eef; }
-    .box { background: #fff; padding: 1em; border-radius: 8px; max-width: 400px; }
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      background-color: #eef;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .box {
+      background: #fff;
+      padding: 2em;
+      border-radius: 12px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.5em;
+      text-align: center;
+    }
+    .student-id {
+      text-align: center;
+      font-size: 1.1em;
+      margin-bottom: 0.5em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.75em;
+      border: 1px solid #ccc;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    .button-link {
+      margin-top: 2em;
+      padding: 0.75em 1.5em;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+      cursor: pointer;
+      display: inline-block;
+      text-align: center;
+    }
+    .button-link:hover {
+      background-color: #0056b3;
+    }
+    @media (max-width: 600px) {
+      .box {
+        padding: 1.2em;
+      }
+      h2 {
+        font-size: 1.2em;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="box">
     <h2>あなたのスケジュール</h2>
+    {% if not row.empty %}
+      <div class="student-id">学籍番号：{{ row.iloc[0]['student_id'] }}</div>
+    {% endif %}
     {% if row.empty %}
       <p>該当する学籍番号が見つかりませんでした。</p>
     {% else %}
-      <ul>
-        {% for col in row.columns[1:] %}
-          <li><strong>{{ col }}</strong>: {{ row.iloc[0][col] }}</li>
-        {% endfor %}
-      </ul>
+      <table>
+        <thead>
+          <tr><th>時間帯</th><th>割当企業</th></tr>
+        </thead>
+        <tbody>
+          {% for col in row.columns[1:] if col != 'score' %}
+          <tr>
+            <td>{{ col }}</td>
+            <td>{{ row.iloc[0][col] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     {% endif %}
-    <p><a href="/">戻る</a></p>
+    <a href="/" class="button-link">← 戻る</a>
   </div>
 </body>
 </html>

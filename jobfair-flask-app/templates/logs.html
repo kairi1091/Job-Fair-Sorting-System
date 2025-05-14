@@ -1,11 +1,58 @@
 <!doctype html>
-<html>
+<html lang="ja">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ログ一覧</title>
   <style>
-    body { font-family: sans-serif; padding: 2em; }
-    h2 { margin-top: 2em; }
-    ul { line-height: 1.5em; }
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      background-color: #f9f9f9;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1, h2 {
+      text-align: center;
+      margin-top: 1em;
+    }
+    ul {
+      background: #fff;
+      padding: 1em;
+      border-radius: 10px;
+      max-width: 720px;
+      width: 100%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      line-height: 1.6em;
+      margin-bottom: 2em;
+      list-style: none;
+    }
+    li {
+      border-bottom: 1px solid #eee;
+      padding: 0.5em 0;
+    }
+    li:last-child {
+      border-bottom: none;
+    }
+    a {
+      display: inline-block;
+      margin-top: 1em;
+      color: #007bff;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 1em;
+      }
+      ul {
+        padding: 0.8em;
+      }
+    }
   </style>
 </head>
 <body>
