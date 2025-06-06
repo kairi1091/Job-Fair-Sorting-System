@@ -2,8 +2,8 @@ import pandas as pd
 import re
 
 def load_students(path="data/students.csv", mode=None):
-    
     df = pd.read_csv(path)
+
     required_cols = ["学籍番号", "希望事業所1", "希望事業所2", "希望事業所3"]
     if any(col not in df.columns for col in required_cols):
         raise ValueError("CSVに必要な列が不足しています（希望事業所1〜3が必要）")
@@ -19,6 +19,7 @@ def load_students(path="data/students.csv", mode=None):
     for col in ["company_1", "company_2", "company_3", "company_4"]:
         if col not in df.columns:
             df[col] = None
+        df[col] = df[col].astype(str).str.strip()     # ←★ 空白除去をここで
 
     if mode is None:
         if df["company_4"].notna().any() and df["company_4"].astype(str).str.strip().ne("").any():
@@ -45,9 +46,9 @@ def load_students(path="data/students.csv", mode=None):
 
 def load_companies(path):
     df = pd.read_csv(path)
-    df = df[df["企業名"].notna()]
-    df = df[df["企業名"].str.strip() != ""]
     df["企業名"] = df["企業名"].str.strip()
+    df = df[df["企業名"].notna()]
+    df = df[df["企業名"] != ""]
     df = df.rename(columns={"業種": "department_id"})
     return df
 

@@ -1,2 +1,28 @@
-STEP 4: 学科マッチ補完数 = 1847
-STEP 5: ランダム補完数 = 169
+STEP 4: 学科マッチ補完数（合計） = 2075
+STEP 5: 0人スロット補完数（合計） = 0
+
+--- 学科別 補完内訳 ---
+学科 H → STEP4: 0件, STEP5: 0件
+学科 I → STEP4: 448件, STEP5: 0件
+学科 D → STEP4: 402件, STEP5: 0件
+学科 G → STEP4: 408件, STEP5: 0件
+学科 F → STEP4: 400件, STEP5: 0件
+学科 E → STEP4: 0件, STEP5: 0件
+学科 A → STEP4: 0件, STEP5: 0件
+学科 B → STEP4: 0件, STEP5: 0件
+学科 C → STEP4: 417件, STEP5: 0件
+
+--- 補完理由一覧 ---
+
+--- 学科外希望／割当件数 ---
+学科 H → cross_pref = 0 件, cross_assign = 0 件
+学科 I → cross_pref = 448 件, cross_assign = 0 件
+学科 D → cross_pref = 402 件, cross_assign = 0 件
+学科 G → cross_pref = 408 件, cross_assign = 0 件
+学科 F → cross_pref = 400 件, cross_assign = 0 件
+学科 E → cross_pref = 0 件, cross_assign = 0 件
+学科 A → cross_pref = 0 件, cross_assign = 0 件
+学科 B → cross_pref = 0 件, cross_assign = 0 件
+学科 C → cross_pref = 417 件, cross_assign = 0 件
+
+全学科合計 cross_assign = 0 件
