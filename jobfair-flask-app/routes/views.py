@@ -143,6 +143,23 @@ def run_assignment():
             flash(f"⚠️ 学科 {dept} はパターンBのためスキップ（未実装）")
             print(f"⚠️ 学科 {dept} はパターンBのためスキップ（未実装）")
             dept_log_summary[dept] = {"step4": 0, "step5": 0}
+
+            df_orig_pref_dept = df_preference[df_preference["student_id"].isin(sids)]
+            empty_schedule = {sid: [None] * NUM_SLOTS for sid in sids}  # 割当ゼロ
+            _, cross_pref, _ = build_diagnosis(
+                df_orig_pref_dept,
+                empty_schedule,
+                df_dept_company
+            )
+            cross_pref_cnt = len(cross_pref)
+            dept_log_summary[dept] = {
+                "step4": 0, "step5": 0,
+                "cross_pref": cross_pref_cnt,
+                "cross_assign": 0,
+            }
+            print(f"⚠️ {dept}: 学科外を希望した件数 = {cross_pref_cnt}")
+
+            continue  # B はこれでループ終わり
             
         
     total_cross_assign = sum(dept_log_summary[d].get("cross_assign", 0)
