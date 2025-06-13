@@ -1,6 +1,5 @@
 # utils/diagnoser.py
 import pandas as pd
-from utils.data_loader import get_department_id
 
 def build_diagnosis(
     df_pref,

@@ -4,26 +4,34 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 import pandas as pd
 import os
 from werkzeug.utils import secure_filename
-from utils.data_loader import load_students, load_companies, get_department_id
-from utils.assigner import assign_preferences, fill_with_industry_match, fill_zero_slots, run_pattern_a
+from utils.data_loader import load_students, load_companies
+from utils.assigner import assign_preferences, fill_with_industry_match, fill_zero_slots, run_pattern_a, rescue_zero_visits
+from utils.strict_assigner import run_strict_scheduler
 import random
 from flask import send_file
-from utils.data_loader import load_students, load_companies
 from utils.diagnoser import build_diagnosis
+from pathlib import Path
 
 
 views = Blueprint("views", __name__)
 UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)   # ⑥
+UPLOAD_PATH = Path(UPLOAD_FOLDER) / "students.csv"
+COMPANY_PATH = Path(UPLOAD_FOLDER) / "companies.csv"
 ALLOWED_EXTENSIONS = {"csv"}
+STUDENTS_PATH  = Path("uploads/students.csv")
+COMPANIES_PATH = Path("uploads/companies.csv")
 
 NUM_SLOTS = 4
 
 @views.route("/admin/run", methods=["POST"])
 def run_assignment():
-    from utils.data_loader import get_department_id
-    df_preference, mode = load_students("data/students.csv")
     session["mode"] = mode
-    df_company = load_companies("data/companies.csv")
+    path_students  = STUDENTS_PATH  if STUDENTS_PATH.exists()  else "data/students.csv"
+    path_companies = COMPANIES_PATH if COMPANIES_PATH.exists() else "data/companies.csv"
+    
+    df_preference, mode, student_dept_map = load_students(path_students)
+    df_company = load_companies(path_companies)
     student_ids = df_preference["student_id"].unique()
     session["shared_capacity"] = int(request.form.get("shared_capacity", 10))
     cap = session["shared_capacity"]
@@ -41,12 +49,10 @@ def run_assignment():
 
 
     # 学科ごとにグループ化
-    dept_to_students = {}
+    from collections import defaultdict
+    dept_to_students = defaultdict(list)
     for sid in student_ids:
-        dept = get_department_id(sid)
-        if dept is None:
-            continue
-        dept_to_students.setdefault(dept, []).append(sid)
+        dept_to_students[ student_dept_map[sid] ].append(sid)
         
     
     # 学科ループに入る前に diagnosis.csv をリセット
@@ -59,7 +65,7 @@ def run_assignment():
         df_dept_company = df_company[df_company["department_id"] == dept]
         df_dept_pref = df_preference[df_preference["student_id"].isin(sids)]
                 # 学科内の企業だけに限定する（重要！）
-        valid_companies = df_dept_company["企業名"].tolist()
+        valid_companies = df_dept_company["company_name"].tolist()
         df_dept_pref = df_dept_pref[df_dept_pref["company_name"].isin(valid_companies)]
         
         
@@ -74,7 +80,7 @@ def run_assignment():
 
         if pattern == "A":
             schedule, score, assigned, capacity, filled4, filled5, reasons = run_pattern_a(
-                df_dept_pref, df_dept_company, sids, cap, NUM_SLOTS
+                df_dept_pref, df_dept_company, sids, dept, student_dept_map, cap, NUM_SLOTS
             )
             filled_step4_total += filled4
             
@@ -111,11 +117,11 @@ def run_assignment():
 
             # ログ出力や集計
             if cross_pref:
-                print(f"⚠️ {dept}: 学科外を希望した件数 = {len(cross_pref)}")
+                print(f"⚠️ {dept}: [A]学科外を希望した件数 = {len(cross_pref)}")
             if cross_assign:
-                print(f"❌ {dept}: 学科外割当 {cross_assign[:10]} ...")  # 先頭 10 件だけ表示
+                print(f"❌ {dept}: [A]学科外割当 {cross_assign[:10]} ...")  # 先頭 10 件だけ表示
             else:
-                print(f"✅ {dept}: 学科外割当なし")
+                print(f"✅ {dept}: [A]学科外割当なし")
 
 
             # ---- 集計 ----
@@ -137,29 +143,133 @@ def run_assignment():
                 header=not os.path.exists("diagnosis.csv")  # 最初の学科だけヘッダ
             )
             
+            from utils.logger import (
+                find_company_zero_slots, find_zero_visit_students, find_underfilled_students
+            )
+
+            # --- 会社側 0人スロット ------------------------------
+            zero_slots = find_company_zero_slots(schedule, valid_companies, NUM_SLOTS)
+            if zero_slots:
+                print(f"❗ {dept}: 企業側 0人スロット {len(zero_slots)} 件 → {zero_slots[:10]}")
+            else:
+                print(f"✅ {dept}: 企業側 0人スロットなし")
+
+            # --- 学生側 0訪問 -------------------------------
+            zero_visit = find_zero_visit_students(schedule)
+            if zero_visit:
+                print(f"❗ {dept}: 0訪問学生 {len(zero_visit)} 人 → {zero_visit[:10]}")
+            else:
+                print(f"✅ {dept}: 0訪問学生なし")
+            
             print(f"[DEBUG] cross_pref={cross_pref_cnt}, cross_assign={cross_assign_cnt}")
 
-        else:
-            flash(f"⚠️ 学科 {dept} はパターンBのためスキップ（未実装）")
-            print(f"⚠️ 学科 {dept} はパターンBのためスキップ（未実装）")
-            dept_log_summary[dept] = {"step4": 0, "step5": 0}
+        if pattern == "B":
+            import random
+            random.shuffle(sids)   # ← 早い者勝ち防止（方法 A）
+            schedule, capacity, unassigned = run_strict_scheduler(
+                df_dept_pref, df_dept_company, sids, dept, cap, NUM_SLOTS
+            )
+            
+            rescue_zero_visits(schedule, capacity, valid_companies, NUM_SLOTS)
+
+            # 統一の出力形式に合わせて辞書更新 (score, reasonsは空でもOK)
+            student_schedule.update(schedule)
+            student_score.update({sid: 0 for sid in sids})
+            student_assigned_companies.update({
+                sid: set(c for c in schedule[sid] if c not in [None, ""])
+                for sid in sids
+            })
+
+            
+            filled4, filled5, reasons = 0, 0, {}
+            filled_step4_total += filled4
+            filled_step5_total += filled5
+            all_reason_logs.append(reasons)
+
+            print(f"[{dept}] (strictB) 割当完了（未割当 {len(unassigned)}人）")
+
+            matched_cnt = sum(
+                1 for sid in sids
+                if any(
+                    c in df_dept_pref[df_dept_pref.student_id == sid].company_name.values
+                    for c in schedule[sid]
+                )
+            )
+            print(f"[{dept}] (B) 希望一致学生数 = {matched_cnt} / {len(sids)}")
+
+            dept_log_summary[dept] = {"step4": filled4, "step5": filled5}
 
             df_orig_pref_dept = df_preference[df_preference["student_id"].isin(sids)]
-            empty_schedule = {sid: [None] * NUM_SLOTS for sid in sids}  # 割当ゼロ
-            _, cross_pref, _ = build_diagnosis(
+            df_diag_dept, cross_pref, cross_assign = build_diagnosis(
                 df_orig_pref_dept,
-                empty_schedule,
+                schedule,
                 df_dept_company
             )
-            cross_pref_cnt = len(cross_pref)
-            dept_log_summary[dept] = {
-                "step4": 0, "step5": 0,
-                "cross_pref": cross_pref_cnt,
-                "cross_assign": 0,
-            }
-            print(f"⚠️ {dept}: 学科外を希望した件数 = {cross_pref_cnt}")
 
-            continue  # B はこれでループ終わり
+            cross_pref_cnt   = len(cross_pref)
+            cross_assign_cnt = len(cross_assign)
+            dept_log_summary[dept].update({
+                "step4"        : filled4,
+                "step5"        : filled5,
+                "cross_pref"   : cross_pref_cnt,
+                "cross_assign" : cross_assign_cnt,
+            })
+
+            cross_total += cross_assign_cnt
+            df_diag_dept.to_csv(
+                "diagnosis.csv",
+                mode="a",
+                index=False,
+                header=not os.path.exists("diagnosis.csv")
+            )
+            
+            from utils.logger import (
+                find_company_zero_slots, find_zero_visit_students, find_underfilled_students
+            )
+
+            # --- 会社側 0人スロット ------------------------------
+            zero_slots = find_company_zero_slots(schedule, valid_companies, NUM_SLOTS)
+            if zero_slots:
+                print(f"❗ {dept}: 企業側 0人スロット {len(zero_slots)} 件 → {zero_slots[:10]}")
+            else:
+                print(f"✅ {dept}: 企業側 0人スロットなし")
+
+            # --- 学生側 0訪問 -------------------------------
+            zero_visit = find_zero_visit_students(schedule)
+            if zero_visit:
+                print(f"❗ {dept}: 0訪問学生 {len(zero_visit)} 人 → {zero_visit[:10]}")
+            else:
+                print(f"✅ {dept}: 0訪問学生なし")
+
+            # --- 学生側 max_slots 未満（パターンBのみ） ----------
+            if pattern == "B":
+                # strict_assigner と同じ式で再計算
+                import math
+                max_slots = min(4, math.floor(len(valid_companies) * cap * NUM_SLOTS / len(sids)))
+                underfill = find_underfilled_students(schedule, max_slots)
+                if underfill:
+                    print(f"⚠️ {dept}: max_slots 未満 {len(underfill)} 人 → {underfill[:10]}")
+                else:
+                    print(f"✅ {dept}: 全員 max_slots（{max_slots} 枠）充足")
+
+            
+            from utils.logger import find_discontinuous_students
+
+            disc = find_discontinuous_students(schedule)
+            if disc:
+                print(f"❌ {dept}: 飛びコマ学生 {len(disc)} 人 → {disc[:10]}")
+            else:
+                print(f"✅ {dept}: 連続枠制約 OK")
+
+            # ログ出力や集計 (B版)
+            if cross_pref:
+                print(f"⚠️ {dept}: [B]学科外を希望した件数 = {len(cross_pref)}")
+            if cross_assign:
+                print(f"❌ {dept}: [B]学科外割当 {cross_assign[:10]} ...")
+            else:
+                print(f"✅ {dept}: [B]学科外割当なし")
+
+
             
         
     total_cross_assign = sum(dept_log_summary[d].get("cross_assign", 0)
@@ -235,9 +345,9 @@ def index():
 @views.route("/admin")
 def admin():
     from utils.data_loader import load_companies
-
-    df_company = load_companies("data/companies.csv")
-    companies = df_company["企業名"].tolist()
+    path_companies = COMPANIES_PATH if COMPANIES_PATH.exists() else "data/companies.csv"
+    df_company = load_companies(path_companies)
+    companies = df_company["company_name"].tolist()
 
     # 現在のモードとキャパをセッションから取得
     current_mode = session.get("mode", 1)
@@ -256,7 +366,6 @@ def admin():
                                shared_capacity=shared_capacity)
 
 
-
 @views.route("/admin/upload", methods=["GET", "POST"])
 def upload_file():
     if request.method == "POST":
@@ -264,9 +373,8 @@ def upload_file():
         companies_file = request.files.get("companies")
 
         # 保存先パス
-        students_path = os.path.join(UPLOAD_FOLDER, "students.csv")
-        companies_path = os.path.join(UPLOAD_FOLDER, "companies.csv")
-
+        students_path = UPLOAD_PATH
+        companies_path = COMPANY_PATH
         # エラーチェック
         if not students_file or not allowed_file(students_file.filename):
             flash("⚠️ 学生CSVファイルが正しく選択されていません")
@@ -282,12 +390,11 @@ def upload_file():
 
         # クレンジング後の件数確認
         try:
-            df_students, mode = load_students("data/students.csv")
+            df_students, mode, _ = load_students(students_path)
+            df_companies = load_companies(companies_path)
 
-            df_companies = pd.read_csv(companies_path)
-            df_companies = df_companies[df_companies["企業名"].notna()]
-            df_companies = df_companies[df_companies["企業名"].str.strip() != ""]
-            df_companies["企業名"] = df_companies["企業名"].str.strip()
+            df_companies = df_companies[df_companies["company_name"].str.strip() != ""]
+            df_companies["company_name"] = df_companies["company_name"].str.strip()
             df_companies.to_csv(companies_path, index=False)
 
             # ✅ 学生数カウント（学籍番号または student_id）
@@ -372,7 +479,6 @@ def logs():
     # schedule.csv のチェック
     try:
         df_schedule = pd.read_csv("schedule.csv")
-        from utils.data_loader import get_department_id
         from utils.logger import check_schedule_violations
 
         student_schedule = {
@@ -382,7 +488,7 @@ def logs():
 
         df_company = pd.read_csv("data/companies.csv")
         company_capacity = {
-            row["企業名"]: [int(row.get(f"slot_{i}", 0)) for i in range(4)]
+            row["company_name"]: [int(row.get(f"slot_{i}", 0)) for i in range(4)]
             for _, row in df_company.iterrows()
         }
 

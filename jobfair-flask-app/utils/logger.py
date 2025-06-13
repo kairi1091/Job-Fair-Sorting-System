@@ -28,3 +28,40 @@ def check_schedule_violations(student_schedule, company_capacity=None):
             logs.append(f"⚠️ {sid}: 希望枠（{required_slots}枠）がすべて埋まっていません → {slots}")
 
     return logs
+
+# --- 会社側：空きスロット検出 ---------------------------------
+def find_company_zero_slots(student_schedule, valid_companies, num_slots=4):
+    """企業×時間帯で割当ゼロのスロットを返す [(company, slot), ...]"""
+    count = {(c, s): 0 for c in valid_companies for s in range(num_slots)}
+    for slots in student_schedule.values():
+        for s, c in enumerate(slots):
+            if c and c in valid_companies:
+                count[(c, s)] += 1
+    return [k for k, v in count.items() if v == 0]
+
+# --- 学生側：0訪問検出 -----------------------------------------
+def find_zero_visit_students(student_schedule):
+    """全コマ None の学生IDを返す [sid, ...]"""
+    return [sid for sid, slots in student_schedule.items() if all(v is None for v in slots)]
+
+# --- 学生側：不足コマ検出（パターンB用） -------------------------
+def find_underfilled_students(student_schedule, max_slots):
+    """max_slots 未満しか割り当てられていない学生IDを返す [sid, ...]"""
+    return [sid for sid, slots in student_schedule.items()
+            if sum(v is not None for v in slots) < max_slots]
+
+# --- 学生側：連続でない割当（“飛びコマ”）検出 -----------------
+def find_discontinuous_students(student_schedule):
+    """
+    連続していないコマが含まれる学生IDを返す [sid, ...]
+    例) max_slots=2 なら 1–3, 1–4, 2–4 などが NG
+    """
+    bad = []
+    for sid, slots in student_schedule.items():
+        filled_idx = [i for i, v in enumerate(slots) if v is not None]
+        if len(filled_idx) <= 1:          # 0 コマ or 1 コマなら問題なし
+            continue
+        # 連続しているなら (max−min+1) == コマ数 になる
+        if max(filled_idx) - min(filled_idx) + 1 != len(filled_idx):
+            bad.append(sid)
+    return bad
