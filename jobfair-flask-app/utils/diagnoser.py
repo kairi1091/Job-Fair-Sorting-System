@@ -5,6 +5,7 @@ def build_diagnosis(
     df_pref,
     student_schedule: dict,        # {sid: [slot0, slot1, …]}
     df_company: pd.DataFrame,      # 企業 DataFrame（dept 列が必要）
+    student_dept_map: dict
 ):
     """
     - cross_pref  : 学生が『希望として書いた』企業が学科外
@@ -12,7 +13,7 @@ def build_diagnosis(
     どちらも検出して返す
     """
     # 企業 → 学科
-    comp2dept = df_company.set_index("企業名")["department_id"].to_dict()
+    comp2dept = df_company.set_index("company_name")["department_id"].to_dict()
 
     rows            = []
     cross_pref_list = []   # (sid, company)
@@ -23,7 +24,7 @@ def build_diagnosis(
         sid   = r["student_id"]
         cname = r["company_name"]
         rank  = int(r["rank"])
-        sdept = get_department_id(sid)
+        sdept = student_dept_map.get(sid)
         cdept = comp2dept.get(cname)
 
         if cdept is None or cdept != sdept:
@@ -41,7 +42,7 @@ def build_diagnosis(
 
     # ── ② 割り当てを回して cross_assign を判定 ──
     for sid, slots in student_schedule.items():
-        sdept = get_department_id(sid)
+        sdept = student_dept_map.get(sid)
         for slot_idx, cname in enumerate(slots):
             if cname is None:
                 continue

@@ -34,7 +34,7 @@ def assign_one_student(student_id, preferences, company_capacity, valid_companie
     return None
 
 def run_strict_scheduler(df_preference, df_company, student_ids, dept_id, cap, num_slots=4):
-    valid_companies = df_company[df_company["department_id"] == dept_id]["企業名"].tolist()
+    valid_companies = df_company[df_company["department_id"] == dept_id]["company_name"].tolist()
     company_capacity = { cname: [cap] * num_slots for cname in valid_companies }
     total_capacity = len(valid_companies) * cap * num_slots
     initial_max_slots = min(4, math.floor(total_capacity / len(student_ids)))

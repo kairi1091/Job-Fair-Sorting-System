@@ -55,14 +55,14 @@ def run_pattern_a(df_preference, df_company, student_ids, dept_id, student_dept_
     student_score = {sid: 0 for sid in student_ids}
     student_assigned_companies = {sid: set() for sid in student_ids}
     company_capacity = {
-        cname: [cap] * NUM_SLOTS for cname in df_company["企業名"]
+        cname: [cap] * NUM_SLOTS for cname in df_company["company_name"]
     }
 
     # --- Step 1～3: 希望順に割当（第1～第4希望）---
     # --- 学科内企業リストを生成 ---
     valid_companies = df_company[
         df_company["department_id"] == dept_id
-    ]["企業名"].tolist()
+    ]["company_name"].tolist()
         
     for rank in range(1, 5):
         df_ranked = df_preference[df_preference["rank"] == rank]
@@ -106,7 +106,7 @@ def run_pattern_b(df_preference, df_company, student_ids, student_dept_map, cap,
     import math
 
     dept_id = student_dept_map.get(sid, "不明")
-    valid_companies = df_company[df_company["department_id"] == dept_id]["企業名"].tolist()
+    valid_companies = df_company[df_company["department_id"] == dept_id]["company_name"].tolist()
     company_capacity = { cname: [cap] * num_slots for cname in valid_companies }
 
     total_capacity = len(valid_companies) * cap * num_slots
@@ -236,7 +236,7 @@ def fill_with_industry_match(student_schedule, student_assigned_companies,
             if assigned is not None:
                 continue  # すでに割当済みならスキップ
 
-            matched_companies = df_company[df_company["department_id"] == dept]["企業名"].tolist()
+            matched_companies = df_company[df_company["department_id"] == dept]["company_name"].tolist()
             candidates = []
             for company in matched_companies:
                 if company not in valid_companies:      # ★ ここでまず学科外を排除

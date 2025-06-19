@@ -26,12 +26,13 @@ NUM_SLOTS = 4
 
 @views.route("/admin/run", methods=["POST"])
 def run_assignment():
-    session["mode"] = mode
+    
     path_students  = STUDENTS_PATH  if STUDENTS_PATH.exists()  else "data/students.csv"
     path_companies = COMPANIES_PATH if COMPANIES_PATH.exists() else "data/companies.csv"
     
     df_preference, mode, student_dept_map = load_students(path_students)
     df_company = load_companies(path_companies)
+    session["mode"] = mode
     student_ids = df_preference["student_id"].unique()
     session["shared_capacity"] = int(request.form.get("shared_capacity", 10))
     cap = session["shared_capacity"]
@@ -79,6 +80,7 @@ def run_assignment():
             
 
         if pattern == "A":
+            print(f"=================================[{dept}] パターン A で割当実行=============================================")
             schedule, score, assigned, capacity, filled4, filled5, reasons = run_pattern_a(
                 df_dept_pref, df_dept_company, sids, dept, student_dept_map, cap, NUM_SLOTS
             )
@@ -111,7 +113,8 @@ def run_assignment():
             df_diag_dept, cross_pref, cross_assign = build_diagnosis(
                 df_orig_pref_dept,   # ← フィルタしない元の希望 DF
                 schedule,
-                df_dept_company      # 割当学科の企業 DF
+                df_dept_company,      # 割当学科の企業 DF
+                student_dept_map
             )
 
 
@@ -203,7 +206,8 @@ def run_assignment():
             df_diag_dept, cross_pref, cross_assign = build_diagnosis(
                 df_orig_pref_dept,
                 schedule,
-                df_dept_company
+                df_dept_company,
+                student_dept_map
             )
 
             cross_pref_cnt   = len(cross_pref)
