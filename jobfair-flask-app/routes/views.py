@@ -11,6 +11,7 @@ import random
 from flask import send_file
 from utils.diagnoser import build_diagnosis
 from pathlib import Path
+from pandas.errors import EmptyDataError
 
 
 views = Blueprint("views", __name__)
@@ -22,7 +23,7 @@ ALLOWED_EXTENSIONS = {"csv"}
 STUDENTS_PATH  = Path("uploads/students.csv")
 COMPANIES_PATH = Path("uploads/companies.csv")
 
-NUM_SLOTS = 4
+NUM_SLOTS =4
 
 @views.route("/admin/run", methods=["POST"])
 def run_assignment():
@@ -33,6 +34,7 @@ def run_assignment():
     df_preference, mode, student_dept_map = load_students(path_students)
     df_company = load_companies(path_companies)
     session["mode"] = mode
+    NUM_SLOTS = mode
     student_ids = df_preference["student_id"].unique()
     session["shared_capacity"] = int(request.form.get("shared_capacity", 10))
     cap = session["shared_capacity"]
@@ -110,7 +112,7 @@ def run_assignment():
                 df_preference["student_id"].isin(sids)
             ]
             
-            df_diag_dept, cross_pref, cross_assign = build_diagnosis(
+            df_diag_dept, cross_pref_list, cross_assign_list = build_diagnosis(
                 df_orig_pref_dept,   # ← フィルタしない元の希望 DF
                 schedule,
                 df_dept_company,      # 割当学科の企業 DF
@@ -119,17 +121,21 @@ def run_assignment():
 
 
             # ログ出力や集計
-            if cross_pref:
-                print(f"⚠️ {dept}: [A]学科外を希望した件数 = {len(cross_pref)}")
-            if cross_assign:
-                print(f"❌ {dept}: [A]学科外割当 {cross_assign[:10]} ...")  # 先頭 10 件だけ表示
+            if cross_pref_list:
+                print(f"⚠️ {dept}: [A]学科外を希望した件数 = {len(cross_pref_list)}")
+            if cross_assign_list:
+                print(f"❌ {dept}: [A]学科外割当 {cross_assign_list[:10]} ...")
             else:
                 print(f"✅ {dept}: [A]学科外割当なし")
 
+            cross_pref_sids = sorted(set(sid for sid, _ in cross_pref_list))
+            print("cross_pref（学科外希望）の学生学籍番号:", cross_pref_sids)
+
+
 
             # ---- 集計 ----
-            cross_pref_cnt   = len(cross_pref)
-            cross_assign_cnt = len(cross_assign)
+            cross_pref_cnt   = len(cross_pref_list)
+            cross_assign_cnt = len(cross_assign_list)
 
             dept_log_summary[dept].update({
                 "step4"        : filled4,
@@ -203,15 +209,15 @@ def run_assignment():
             dept_log_summary[dept] = {"step4": filled4, "step5": filled5}
 
             df_orig_pref_dept = df_preference[df_preference["student_id"].isin(sids)]
-            df_diag_dept, cross_pref, cross_assign = build_diagnosis(
+            df_diag_dept, cross_pref_list, cross_assign_list = build_diagnosis(
                 df_orig_pref_dept,
                 schedule,
                 df_dept_company,
                 student_dept_map
             )
 
-            cross_pref_cnt   = len(cross_pref)
-            cross_assign_cnt = len(cross_assign)
+            cross_pref_cnt   = len(cross_pref_list)
+            cross_assign_cnt = len(cross_assign_list)
             dept_log_summary[dept].update({
                 "step4"        : filled4,
                 "step5"        : filled5,
@@ -266,10 +272,10 @@ def run_assignment():
                 print(f"✅ {dept}: 連続枠制約 OK")
 
             # ログ出力や集計 (B版)
-            if cross_pref:
-                print(f"⚠️ {dept}: [B]学科外を希望した件数 = {len(cross_pref)}")
-            if cross_assign:
-                print(f"❌ {dept}: [B]学科外割当 {cross_assign[:10]} ...")
+            if cross_pref_list:
+                print(f"⚠️ {dept}: [B]学科外を希望した件数 = {len(cross_pref_list)}")
+            if cross_assign_list:
+                print(f"❌ {dept}: [B]学科外割当 {cross_assign_list[:10]} ...")
             else:
                 print(f"✅ {dept}: [B]学科外割当なし")
 
@@ -348,26 +354,35 @@ def index():
 
 @views.route("/admin")
 def admin():
+    # CSV が無くても落ちない safe loader
     from utils.data_loader import load_companies
-    path_companies = COMPANIES_PATH if COMPANIES_PATH.exists() else "data/companies.csv"
-    df_company = load_companies(path_companies)
-    companies = df_company["company_name"].tolist()
+    path_companies = (
+        COMPANIES_PATH if COMPANIES_PATH.exists() else "data/companies.csv"
+    )
+    df_company = load_companies(path_companies)   # 空でも DataFrame が返る
+    companies = df_company["company_name"].tolist()  # 使わなくても OK
 
-    # 現在のモードとキャパをセッションから取得
     current_mode = session.get("mode", 1)
     shared_capacity = session.get("shared_capacity", 10)
 
-    try:
-        df = pd.read_csv("schedule.csv")
-        return render_template("admin.html",
-                               table=df.to_html(classes="table table-bordered", index=False),
-                               current_mode=current_mode,
-                               shared_capacity=shared_capacity)
-    except Exception:
-        return render_template("admin.html",
-                               table="<p>まだ割当が実行されていません</p>",
-                               current_mode=current_mode,
-                               shared_capacity=shared_capacity)
+    
+    path_schedule = "schedule.csv"
+    if os.path.exists(path_schedule) and os.path.getsize(path_schedule) > 0:
+        try:
+            df = pd.read_csv(path_schedule)
+            table_html = df.to_html(classes="table table-bordered", index=False)
+        except EmptyDataError:
+            table_html = "<p>まだ割当が実行されていません</p>"
+    else:
+        table_html = "<p>まだ割当が実行されていません</p>"
+ 
+    return render_template(
+         "admin.html",
+         table=table_html,
+         current_mode=current_mode,
+         shared_capacity=shared_capacity,
+     )
+
 
 
 @views.route("/admin/upload", methods=["GET", "POST"])
@@ -410,7 +425,7 @@ def upload_file():
             else:
                 n_students = "不明（列名が見つかりません）"
 
-            mode_msg = "3枠希望（＋自由訪問）" if mode == 1 else "4枠すべて希望"
+            mode_msg = "3枠希望（＋自由訪問）" if mode == 3 else "4枠すべて希望"
             flash(f"✅ 学生データ：{n_students}人 ／ 企業データ：{len(df_companies)}社 をアップロードしました（モード：{mode_msg}）")
 
         except Exception as e:

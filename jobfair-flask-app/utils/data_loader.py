@@ -1,27 +1,20 @@
 import pandas as pd
 import re
-
-import os, pathlib
-print("students.csv =", pathlib.Path("data/students.csv").resolve().exists())
-print("companies.csv =", pathlib.Path("data/companies.csv").resolve().exists())
-df_raw = pd.read_csv("data/students.csv", nrows=0, encoding="utf-8")
-print("Cols:", list(df_raw.columns))
-import pathlib, os, pandas as pd, datetime as dt
-
-PATH = pathlib.Path("data/students.csv").resolve()
-print(">>> 読み込んでいるパス:", PATH)
-print(">>> 更新日時:", dt.datetime.fromtimestamp(PATH.stat().st_mtime))
-
-# ついでに 1 行目を直接表示
-with open(PATH, "r", encoding="utf-8") as f:
-    print(">>> 先頭行:", f.readline().strip())
-import glob
-candidates = glob.glob("**/students*.csv", recursive=True)
-print(">>> 見つかった CSV:", candidates)
+import os
+from pandas.errors import EmptyDataError
+import pathlib, datetime as dt
 
 # --------------------- 学生 ---------------------
-def load_students(path="data/students.csv", mode=None):
-    df = pd.read_csv(path, encoding="utf-8")
+def load_students(path="uploads/students.csv", mode=None):
+    # ---- ファイルが無い／空なら「列だけある空 DataFrame」を返す ----
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return pd.DataFrame(columns=["student_id", "department_name"])
+
+    try:
+        df = pd.read_csv(path, encoding="utf-8")
+    except (FileNotFoundError, EmptyDataError):
+        return pd.DataFrame(columns=["student_id", "department_name"])
+
     def _normalize(col: str) -> str:
         return (
             col.replace("\ufeff", "")   # BOM 除去
@@ -66,13 +59,32 @@ def load_students(path="data/students.csv", mode=None):
                                   "rank": rank})
 
     df_pref = pd.DataFrame(pref_list)
+    # --- 希望列を抽出（“第一希望”などを含む列） ---
+    pref_cols = [c for c in df.columns if re.match(r"第?[一二三四]希望", c)]
+
+    # ✅ 中身が実質 “空” の希望列は除外
+    def is_blank_series(s: pd.Series) -> bool:
+        """NaN / 空文字 / 全半角空白しか無い列なら True"""
+        return s.fillna("").astype(str).str.strip().eq("").all()
+    
+    pref_cols = [c for c in pref_cols if not is_blank_series(df[c])]
+
+    # モード判定
     mode = 4 if len(pref_cols) >= 4 else 3
     print("pref_cols =", pref_cols)
+    print("mode =", mode)
     return df_pref, mode, student_dept_map
 
 # --------------------- 企業 ---------------------
-def load_companies(path="data/companies.csv"):
-    df = pd.read_csv(path, encoding="utf-8")
+def load_companies(path="uploads/companies.csv"):
+    # ---- ファイルが無い／空なら「列だけある空 DataFrame」を返す ----
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return pd.DataFrame(columns=["company_name", "department_id"])
+
+    try:
+        df = pd.read_csv(path, encoding="utf-8")
+    except (FileNotFoundError, EmptyDataError):
+        return pd.DataFrame(columns=["company_name", "department_id"])
     def _normalize(col: str) -> str:
         return (
             col.replace("\ufeff", "")   # BOM 除去

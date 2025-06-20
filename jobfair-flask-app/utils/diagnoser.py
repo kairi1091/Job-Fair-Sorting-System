@@ -1,5 +1,16 @@
-# utils/diagnoser.py
-import pandas as pd
+import re, unicodedata, pandas as pd
+
+def _norm(text: str) -> str:
+    """ 空白・改行など一切合切を取り除き、NFKC 正規化 """
+    if pd.isna(text):
+        return ""
+    # ① Unicode 正規化（全角→半角・合字解除など）
+    text = unicodedata.normalize("NFKC", str(text))
+    # ② 改行・タブ・ゼロ幅スペースなど全ホワイトスペースを1つの空白に
+    text = re.sub(r"\s+", " ", text)
+    # ③ 先頭末尾の空白を削除
+    return text.strip()
+
 
 def build_diagnosis(
     df_pref,
@@ -7,58 +18,62 @@ def build_diagnosis(
     df_company: pd.DataFrame,      # 企業 DataFrame（dept 列が必要）
     student_dept_map: dict
 ):
-    """
-    - cross_pref  : 学生が『希望として書いた』企業が学科外
-    - cross_assign: 『実際に割り当てられた』企業が学科外
-    どちらも検出して返す
-    """
-    # 企業 → 学科
-    comp2dept = df_company.set_index("company_name")["department_id"].to_dict()
+    """cross_pref / cross_assign を検出"""
+    # --- 企業 → 学科（企業名＋学科でユニークに） ---
+    comp2dept = {
+        (_norm(row["company_name"]), _norm(row["department_id"])): _norm(row["department_id"])
+        for _, row in df_company.iterrows()
+    }
 
     rows            = []
     cross_pref_list = []   # (sid, company)
     cross_asgn_list = []   # (sid, company)
 
-    # ── ① 希望（rank 別）を回して cross_pref を判定 ──
+    # ---------- ① 希望判定 ----------
     for _, r in df_pref.iterrows():
         sid   = r["student_id"]
-        cname = r["company_name"]
+        cname = _norm(r["company_name"])
         rank  = int(r["rank"])
-        sdept = student_dept_map.get(sid)
-        cdept = comp2dept.get(cname)
+        sdept = _norm(student_dept_map.get(sid, ""))
 
-        if cdept is None or cdept != sdept:
-            cross_pref_list.append((sid, cname))
+        key      = (cname, sdept)
+        cdept    = comp2dept.get(key)       # None なら学科外
+        is_cross = key not in comp2dept
+
+        if is_cross:
+            cross_pref_list.append((sid, r["company_name"]))  # 元の表記で保持
 
         rows.append({
-            "student_id"        : sid,
-            "student_dept"      : sdept,
-            "company"           : cname,
-            "company_dept"      : cdept,
-            "rank"              : rank,
-            "phase"             : "preference",
-            "result"            : "cross_pref" if (cdept != sdept) else "OK",
+            "student_id"   : sid,
+            "student_dept" : sdept,
+            "company"      : cname,
+            "company_dept" : cdept,
+            "rank"         : rank,
+            "phase"        : "preference",
+            "result"       : "cross_pref" if is_cross else "OK",
         })
 
-    # ── ② 割り当てを回して cross_assign を判定 ──
+    # ---------- ② 割当判定 ----------
     for sid, slots in student_schedule.items():
-        sdept = student_dept_map.get(sid)
-        for slot_idx, cname in enumerate(slots):
-            if cname is None:
+        sdept = _norm(student_dept_map.get(sid, ""))
+        for slot_idx, cname_raw in enumerate(slots):
+            if cname_raw is None:
                 continue
-            cdept = comp2dept.get(cname)
-            is_cross = cdept is None or cdept != sdept
+            cname  = _norm(cname_raw)
+            key      = (cname, sdept)
+            cdept    = comp2dept.get(key)
+            is_cross = key not in comp2dept
             if is_cross:
-                cross_asgn_list.append((sid, cname))
+                cross_asgn_list.append((sid, cname_raw))      # 元の表記で保持
 
             rows.append({
-                "student_id"        : sid,
-                "student_dept"      : sdept,
-                "company"           : cname,
-                "company_dept"      : cdept,
-                "slot"              : slot_idx,
-                "phase"             : "assignment",
-                "result"            : "cross_assign" if is_cross else "OK",
+                "student_id"   : sid,
+                "student_dept" : sdept,
+                "company"      : cname,
+                "company_dept" : cdept,
+                "slot"         : slot_idx,
+                "phase"        : "assignment",
+                "result"       : "cross_assign" if is_cross else "OK",
             })
 
     df_diag = pd.DataFrame(rows)
