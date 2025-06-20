@@ -12,23 +12,36 @@
       background-color: #fefefe;
       margin: 0;
     }
-    h2 {
-      margin-bottom: 1em;
-    }
+    h2 { margin-bottom: 1em; }
+    /* --- テーブルデザイン --- */
     table {
       border-collapse: collapse;
       width: 100%;
       max-width: 100%;
-      overflow-x: auto;
+      table-layout: fixed;
+      background: #fff;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.03);
+      margin: 1.5em 0 0 0;
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 8px;
+      padding: 8px 6px;
       text-align: left;
+      vertical-align: top;
+      white-space: pre-line;
+      word-break: break-word;
+      font-size: 0.98em;
+      line-height: 1.6;
     }
     th {
       background-color: #f0f0f0;
+      font-weight: 600;
+      text-align: center;
     }
+    td:first-child, th:first-child { width: 120px; }
+    td:last-child, th:last-child { width: 90px; }
+    td { max-width: 330px; }
+    /* ボタンやフォームは既存のまま */
     form {
       max-width: 600px;
       margin-bottom: 2em;
@@ -40,10 +53,7 @@
       max-width: 300px;
       margin-top: 0.5em;
     }
-    ul {
-      padding-left: 1em;
-      color: green;
-    }
+    ul { padding-left: 1em; color: green; }
     .nav-button {
       display: inline-block;
       margin: 0.5em 0;
@@ -57,9 +67,7 @@
       text-align: center;
       text-decoration: none;
     }
-    .nav-button:hover {
-      background-color: #2fc44f;
-    }
+    .nav-button:hover { background-color: #2fc44f; }
     .action-button {
       background-color: #007bff;
       color: white;
@@ -72,25 +80,19 @@
       width: 100%;
       max-width: 300px;
     }
-    .action-button:hover {
-      background-color: #0056b3;
-    }
+    .action-button:hover { background-color: #0056b3; }
+
+    /* スマホ対応 */
     @media (max-width: 600px) {
-      body {
-        padding: 1em;
-      }
+      body { padding: 1em; }
       table, thead, tbody, th, td, tr {
         display: block;
         width: 100%;
       }
-      th {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-      }
+      th { position: absolute; top: -9999px; left: -9999px; }
       td {
         position: relative;
-        padding-left: 50%;
+        padding-left: 48%;
         border: none;
         border-bottom: 1px solid #ccc;
       }
@@ -98,10 +100,11 @@
         position: absolute;
         top: 0;
         left: 10px;
-        width: 45%;
+        width: 42%;
         padding-right: 10px;
         white-space: nowrap;
         font-weight: bold;
+        color: #444;
       }
     }
   </style>

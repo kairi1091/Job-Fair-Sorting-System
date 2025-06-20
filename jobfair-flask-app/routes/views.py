@@ -436,55 +436,97 @@ def upload_file():
 
     return render_template("upload.html")
 
+# 企業名を番号付きリスト形式で整形
+def prettify_with_number(companies):
+    """
+    リストを「1. 企業名<br>2. 企業名<br>...」形式で
+    """
+    if isinstance(companies, list):
+        return "<br>".join(
+            f"{i+1}. {c.replace('\u3000', ' ').strip()}" for i, c in enumerate(companies)
+        )
+    return str(companies).replace("\u3000", " ")
+
+
 # 統計
 @views.route("/admin/stats")
 def stats():
     try:
-        df_schedule = pd.read_csv("schedule.csv")
-        df_pref = pd.read_csv("data/students.csv")
-        df_company = load_companies("data/companies.csv")  # ← 修正ポイント
+        # ---------- schedule.csv ----------
+        df_schedule = pd.read_csv("schedule.csv", encoding="utf-8-sig")
+        df_schedule.columns = (
+            df_schedule.columns
+            .str.replace("\ufeff", "", regex=False)  # BOM
+            .str.replace("　", "", regex=False)      # 全角空白
+            .str.strip()
+        )
+        if "student_id" not in df_schedule.columns:
+            # 旧形式 (indexが学籍番号) に対応
+            df_schedule.reset_index(inplace=True)
+            df_schedule.rename(columns={"index": "student_id"}, inplace=True)
+
+        # ---------- students.csv ----------
+        df_pref_raw = pd.read_csv("uploads/students.csv", encoding="utf-8-sig")
+        df_pref_raw.columns = (
+            df_pref_raw.columns
+            .str.replace("\ufeff", "", regex=False)
+            .str.replace("　", "", regex=False)
+            .str.strip()
+        )
+        df_pref_raw.rename(columns={
+            "学籍番号": "student_id",
+            "第一希望": "希望事業所1",
+            "第二希望": "希望事業所2",
+            "第三希望": "希望事業所3",
+        }, inplace=True)
+
     except Exception as e:
-        flash("必要なCSVファイルが読み込めませんでした")
+        flash("必要なCSVファイルの読込に失敗しました：" + str(e))
         return redirect(url_for("views.admin"))
 
-    # 希望企業リスト作成（rank付き）
-    pref_list = []
-    for _, row in df_pref.iterrows():
-        for rank in range(1, 4):
+    # ---------- 希望リスト作成 ----------
+    pref_rows = []
+    for _, row in df_pref_raw.iterrows():
+        for rank in (1, 2, 3):
             company = row.get(f"希望事業所{rank}")
-            if pd.notna(company):
-                pref_list.append({
-                    "student_id": row["学籍番号"],
-                    "company_name": company.strip(),
-                    "rank": rank
+            if pd.notna(company) and str(company).strip():
+                pref_rows.append({
+                    "student_id"  : row["student_id"],
+                    "company_name": str(company).strip(),
+                    "rank"        : rank,
                 })
-    df_preference = pd.DataFrame(pref_list)
+    df_preference = pd.DataFrame(pref_rows)
 
+    # ---------- 反映率計算 ----------
+    num_slots = sum(col.startswith("slot_") for col in df_schedule.columns)
     stats_data = []
-    preferred_ids = df_preference["student_id"].unique()
 
     for _, row in df_schedule.iterrows():
         sid = row["student_id"]
-        assigned = [row[f"slot_{i}"] for i in range(4) if f"slot_{i}" in row]
+        assigned = [row[f"slot_{i}"] for i in range(num_slots) if f"slot_{i}" in row]
         assigned = [a for a in assigned if pd.notna(a) and a != "自由訪問枠"]
 
-        preferred_rows = df_preference[df_preference["student_id"] == sid]
-        preferred = preferred_rows["company_name"].unique().tolist()
+        # 学生が出した希望企業（順番そのまま）
+        preferred_rows = df_preference[df_preference.student_id == sid]
+        original_pref_list = preferred_rows.sort_values("rank")["company_name"].tolist()
 
-        if not preferred:
-            continue  # 希望なしは除外
+        if not original_pref_list:
+            continue
 
-        matched = [a for a in assigned if a in preferred]
-        reflect_rate = 100 if matched else 0
+        # （反映率は現状のままでOK）
+        matched = [a for a in assigned if a in original_pref_list]
+        reflect_rate = 100 * len(matched) // len(original_pref_list)
 
         stats_data.append({
             "student_id": sid,
-            "assigned": assigned,
-            "matched": matched,
-            "reflect_rate": reflect_rate
+            "assigned": prettify_with_number(assigned),
+            "matched": prettify_with_number(original_pref_list),
+            "reflect_rate": f"{reflect_rate}%",
         })
 
+
     return render_template("stats.html", stats_data=stats_data)
+
 
 
 @views.route("/admin/logs")

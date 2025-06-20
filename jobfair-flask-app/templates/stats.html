@@ -1,100 +1,52 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>統計とログ</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>割当反映率</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 2em;
-      background-color: #f9f9f9;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h1 {
-      text-align: center;
-      font-size: 1.5em;
-      margin-bottom: 1em;
-    }
-    a {
-      align-self: flex-start;
-      margin-bottom: 1em;
-      color: #007bff;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      max-width: 100%;
-      background: white;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-      margin-bottom: 2em;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #f0f0f0;
-    }
-    @media (max-width: 600px) {
-      body {
-        padding: 1em;
-      }
-      table, thead, tbody, th, td, tr {
-        display: block;
-        width: 100%;
-      }
-      thead {
-        display: none;
-      }
-      tr {
-        margin-bottom: 1em;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        padding: 1em;
-        background: #fff;
-      }
-      td {
-        border: none;
-        padding: 0.5em 0;
-        position: relative;
-      }
-      td::before {
-        content: attr(data-label);
-        font-weight: bold;
-        display: block;
-        margin-bottom: 0.3em;
-      }
+    *,*::before,*::after{box-sizing:border-box}
+    body{font-family:sans-serif;margin:0;padding:2rem;background:#f9f9f9;display:flex;flex-direction:column;align-items:center}
+    h1{margin-bottom:1rem;font-size:1.4rem}
+    table{border-collapse:collapse;width:100%;max-width:1200px;table-layout:fixed;background:#fff}
+    thead th{background:#e9ecef;padding:.5rem;border:1px solid #ccc;text-align:left}
+    tbody td{padding:.5rem;border:1px solid #ccc;vertical-align:top;white-space:pre-line;word-break:break-word}
+
+    /*️⃣  列幅調整 ── 学籍番号 / 反映率 は狭め  */
+    thead th:first-child,tbody td:first-child{width:120px;min-width:120px}
+    thead th:last-child,tbody td:last-child{width:90px;min-width:90px;text-align:center}
+
+    tbody tr:nth-child(odd){background:#f6f6f6}
+
+    @media(max-width:768px){
+      table,thead,tbody,th,td,tr{display:block;width:100%}
+      thead{display:none}
+      tbody td{border:none;border-bottom:1px solid #ddd;position:relative;padding-left:45%}
+      tbody td::before{content:attr(data-label);position:absolute;left:0;top:0;width:40%;padding:.5rem;font-weight:700;background:#e9ecef;border-right:1px solid #ccc;white-space:normal}
     }
   </style>
 </head>
 <body>
-
-<p><a href="/admin">← 管理画面に戻る</a></p>
-<h1>📊 希望反映状況（希望あり学生のみ）</h1>
-<table>
-  <thead>
-    <tr><th>学籍番号</th><th>割当</th><th>希望に合致</th><th>反映率</th></tr>
-  </thead>
-  <tbody>
-    {% for s in stats_data %}
-    <tr>
-      <td data-label="学籍番号">{{ s.student_id }}</td>
-      <td data-label="割当">{{ s.assigned }}</td>
-      <td data-label="希望に合致">{{ s.matched }}</td>
-      <td data-label="反映率">{{ s.reflect_rate }}%</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
+  <h1>割当と希望反映率</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>学籍番号</th>
+        <th>希望</th>
+        <th>割当</th>
+        <th>反映率</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in stats_data %}
+      <tr>
+        <td data-label="学籍番号">{{ s.student_id }}</td>
+        <td data-label="希望">{{ s.matched | safe }}</td>
+        <td data-label="割当">{{ s.assigned | safe }}</td>
+        <td data-label="反映率">{{ s.reflect_rate }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </body>
 </html>
