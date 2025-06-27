@@ -306,8 +306,9 @@ def run_assignment():
         student_schedule, orient="index",
         columns=[f"slot_{i}" for i in range(NUM_SLOTS)]
     )
-    output_df["score"] = output_df.index.map(lambda sid: student_score.get(sid, 0))
     output_df.reset_index(names="student_id", inplace=True)
+    output_df["dept"] = output_df["student_id"].map(student_dept_map)
+    output_df["score"] = output_df.index.map(lambda sid: student_score.get(sid, 0))
     output_df.to_csv("schedule.csv", index=False)
     flash("割当を実行し、schedule.csvを更新しました。")
 
