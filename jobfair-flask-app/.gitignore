@@ -14,3 +14,6 @@ Thumbs.db
 # 環境設定（必要に応じて）
 .env
 *.env
+
+# schedule.csvを無視
+schedule.csv

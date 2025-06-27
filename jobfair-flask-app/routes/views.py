@@ -65,20 +65,29 @@ def run_assignment():
 
     # 各学科ごとに処理
     for dept, sids in dept_to_students.items():
+        # ① 学科対応企業だけを抽出
         df_dept_company = df_company[df_company["department_id"] == dept]
-        df_dept_pref = df_preference[df_preference["student_id"].isin(sids)]
-                # 学科内の企業だけに限定する（重要！）
-        valid_companies = df_dept_company["company_name"].tolist()
-        df_dept_pref = df_dept_pref[df_dept_pref["company_name"].isin(valid_companies)]
-        
-        
-        total_capacity = cap * len(df_dept_company) * NUM_SLOTS
-        max_demand = len(sids) * NUM_SLOTS
+        company_count   = df_dept_company["company_name"].nunique()   # ← 重複行は1社扱い
 
-        if total_capacity >= max_demand:
-            pattern = "A"
-        else:
-            pattern = "B"
+        # ② 学科の学生希望を抽出（学科対応企業のみ）
+        valid_companies = df_dept_company["company_name"].tolist()
+        df_dept_pref    = df_preference[
+            (df_preference["student_id"].isin(sids)) &
+            (df_preference["company_name"].isin(valid_companies))
+        ]
+
+        # ③ キャパと需要
+        total_capacity = cap * NUM_SLOTS * company_count
+        max_demand     = len(sids) * NUM_SLOTS
+
+        # ④ 判定
+        pattern = "A" if total_capacity > max_demand else "B"
+
+        # ⑤ デバッグ出力
+        print(f"[DEBUG] {dept: <15} 企業数={company_count:2d}  学生数={len(sids):3d}  "
+            f"総キャパ={total_capacity}  需要={max_demand}  → パターン{pattern}")
+                # 余裕ゼロ or 足りない
+
             
 
         if pattern == "A":
@@ -173,6 +182,7 @@ def run_assignment():
             print(f"[DEBUG] cross_pref={cross_pref_cnt}, cross_assign={cross_assign_cnt}")
 
         if pattern == "B":
+            print(f"=================================[{dept}] パターン B で割当実行=============================================")
             import random
             random.shuffle(sids)   # ← 早い者勝ち防止（方法 A）
             schedule, capacity, unassigned = run_strict_scheduler(
@@ -447,6 +457,25 @@ def prettify_with_number(companies):
         )
     return str(companies).replace("\u3000", " ")
 
+def prettify_with_slot_number_all(assigned_pairs, num_slots):
+    """
+    NUM_SLOTSぶん常に
+      1. [割当企業 or 空]
+      2. [割当企業 or 空]
+      ...
+    の形で <br>区切りで返す
+    """
+    # まず slot 番号→企業名 の辞書を作る
+    slot_map = {idx: c for idx, c in assigned_pairs}
+    lines = []
+    for i in range(num_slots):
+        company = slot_map.get(i, "")
+        line = f"{i+1}" if not company else f"{i+1}.  {company.replace('\u3000',' ').strip()}"
+        lines.append(line)
+    return "<br>".join(lines)
+
+
+
 
 # 統計
 @views.route("/admin/stats")
@@ -503,8 +532,14 @@ def stats():
 
     for _, row in df_schedule.iterrows():
         sid = row["student_id"]
-        assigned = [row[f"slot_{i}"] for i in range(num_slots) if f"slot_{i}" in row]
-        assigned = [a for a in assigned if pd.notna(a) and a != "自由訪問枠"]
+        assigned_pairs = [
+                            (i, row[f"slot_{i}"])
+                            for i in range(num_slots)
+                            if f"slot_{i}" in row
+                            and pd.notna(row[f"slot_{i}"])
+                            and row[f"slot_{i}"] != "自由訪問枠"
+                        ]
+
 
         # 学生が出した希望企業（順番そのまま）
         preferred_rows = df_preference[df_preference.student_id == sid]
@@ -514,12 +549,12 @@ def stats():
             continue
 
         # （反映率は現状のままでOK）
-        matched = [a for a in assigned if a in original_pref_list]
+        matched = [a for a in assigned_pairs if a in original_pref_list]
         reflect_rate = 100 * len(matched) // len(original_pref_list)
 
         stats_data.append({
             "student_id": sid,
-            "assigned": prettify_with_number(assigned),
+            "assigned"  : prettify_with_slot_number_all(assigned_pairs, num_slots),
             "matched": prettify_with_number(original_pref_list),
             "reflect_rate": f"{reflect_rate}%",
         })
